@@ -2,9 +2,21 @@
 
 Wrapper around System.Net.WebSockets.ClientWebSocket that provides event based interface to exchange text messages over Web Sockets and support cancellation.
 
-> Target Platform: .NET Standard 2.0
+## Target Platform: 
+.NET Standard 2.0
 
-Example:
+## Install
+
+#### Package Manager
+`Install-Package WebSocketTextClient`
+
+#### DotNetCore
+`dotnet add package WebSocketTextClient`
+
+#### Packet
+`paket add WebSocketTextClient --version 1.0.0`
+
+## Example
 
 ```csharp
 using (var cts = new CancellationTokenSource())
