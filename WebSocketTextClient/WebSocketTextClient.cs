@@ -59,7 +59,7 @@ namespace WebSockets
                     OnResponse?.Invoke(responce);
                 }
             }
-            catch (AggregateException e) when (e.InnerException is TaskCanceledException)
+            catch (OperationCanceledException)
             {
                 // swallow cancel exception
             }
