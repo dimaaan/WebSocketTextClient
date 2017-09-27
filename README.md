@@ -14,7 +14,7 @@ Wrapper around System.Net.WebSockets.ClientWebSocket that provides event based i
 `dotnet add package WebSocketTextClient`
 
 #### Packet
-`paket add WebSocketTextClient --version 1.0.0`
+`paket add WebSocketTextClient`
 
 ## Example
 
@@ -24,8 +24,8 @@ using (var client = new WebSocketTextClient(cts.Token))
 {
     client.OnResponse = (text) => Console.WriteLine(text);
 
-    await client.Connect(new Uri("ws://example.com"));
-    await client.Send("ping");
+    await client.ConnectAsync(new Uri("ws://example.com"));
+    await client.SendAsync("ping");
     await Task.Delay(5000);
 }
 ```

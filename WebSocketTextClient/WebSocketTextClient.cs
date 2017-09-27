@@ -13,29 +13,29 @@ namespace WebSockets
     public class WebSocketTextClient: IDisposable
     {
         private ClientWebSocket Socket;
-        private CancellationToken Cancellation;
+        private CancellationToken CancellationToken;
         private Task RecieveTask;
         private bool Disposed = false; // To detect redundant calls
 
-        public WebSocketTextClient(CancellationToken cancellation)
+        public WebSocketTextClient(CancellationToken cancellationToken)
         {
-            Cancellation = cancellation;
+            CancellationToken = cancellationToken;
             Socket = new ClientWebSocket();
-            RecieveTask = new Task(RecieveLoop, cancellation);
+            RecieveTask = new Task(RecieveLoop, cancellationToken);
         }
 
         public event Action<string> OnResponse;
 
-        public async Task Connect(Uri url)
+        public async Task ConnectAsync(Uri url)
         {
-            await Socket.ConnectAsync(url, Cancellation);
+            await Socket.ConnectAsync(url, CancellationToken);
             RecieveTask.Start();
         }
 
-        public Task Send(string str)
+        public Task SendAsync(string str)
         {
             var bytes = Encoding.UTF8.GetBytes(str);
-            return Socket.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Text, true, Cancellation);
+            return Socket.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Text, true, CancellationToken);
         }
 
         private async void RecieveLoop()
@@ -51,7 +51,7 @@ namespace WebSockets
                     writeSegment = new ArraySegment<byte>(buffer);
                     do
                     {
-                        result = await Socket.ReceiveAsync(writeSegment, Cancellation);
+                        result = await Socket.ReceiveAsync(writeSegment, CancellationToken);
                         writeSegment = new ArraySegment<byte>(buffer, writeSegment.Offset + result.Count, writeSegment.Count - result.Count);
                     } while (!result.EndOfMessage);
 

@@ -3,6 +3,15 @@
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
     <RootNamespace>WebSockets</RootNamespace>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <Authors>Dmitry Anshilevich</Authors>
+    <Company />
+    <Product />
+    <Description>Wrapper around System.Net.WebSockets.ClientWebSocket that provides event based interface to exchange text messages over Web Sockets and support cancellation.</Description>
+    <PackageProjectUrl>https://github.com/dimaaan/WebSocketTextClient</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/dimaaan/WebSocketTextClient</RepositoryUrl>
+    <PackageTags>websocket</PackageTags>
+    <Version>2.0.0</Version>
   </PropertyGroup>
 
 </Project>
