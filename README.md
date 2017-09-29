@@ -1,6 +1,6 @@
 # WebSocketTextClient
 
-Wrapper around System.Net.WebSockets.ClientWebSocket that provides event based interface to exchange text messages over Web Sockets and support cancellation.
+Wrapper around System.Net.WebSockets.ClientWebSocket that provides event based interface to exchange text messages over Web Sockets in event based way and support cancellation.
 
 ## Target Platform: 
 .NET Standard 2.0

@@ -7,11 +7,15 @@
     <Authors>Dmitry Anshilevich</Authors>
     <Company />
     <Product />
-    <Description>Wrapper around System.Net.WebSockets.ClientWebSocket that provides event based interface to exchange text messages over Web Sockets and support cancellation.</Description>
+    <Description>Wrapper around System.Net.WebSockets.ClientWebSocket that provides event based interface to exchange text messages over Web Sockets in event based way and support cancellation.</Description>
     <PackageProjectUrl>https://github.com/dimaaan/WebSocketTextClient</PackageProjectUrl>
     <RepositoryUrl>https://github.com/dimaaan/WebSocketTextClient</RepositoryUrl>
     <PackageTags>websocket</PackageTags>
-    <Version>2.0.1</Version>
+    <Version>2.1.0</Version>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+    <DocumentationFile>bin\Release\netstandard2.0\WebSocketTextClient.xml</DocumentationFile>
   </PropertyGroup>
 
 </Project>
