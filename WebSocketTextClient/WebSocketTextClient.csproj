@@ -11,7 +11,7 @@
     <PackageProjectUrl>https://github.com/dimaaan/WebSocketTextClient</PackageProjectUrl>
     <RepositoryUrl>https://github.com/dimaaan/WebSocketTextClient</RepositoryUrl>
     <PackageTags>websocket</PackageTags>
-    <Version>2.1.0</Version>
+    <Version>2.2.0</Version>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
