@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Net.WebSockets;
 using System.Text;
 using System.Threading;
@@ -54,6 +55,16 @@ namespace WebSockets
                 this,
                 EventArgs.Empty,
                 null);    
+        }
+
+        /// <summary>Adds custom request headers to the initial request.</summary>
+        /// <param name="headers">A list of custom request headers.</param>
+        public void AddHeaders(params KeyValuePair<string, string>[] headers)
+        {
+            foreach (var header in headers)
+            {
+                this.Socket.Options.SetRequestHeader(header.Key, header.Value);
+            }
         }
 
         /// <summary>
