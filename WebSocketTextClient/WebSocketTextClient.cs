@@ -35,10 +35,10 @@ namespace WebSockets
         public event EventHandler<SocketErrorEventArgs> ErrorReceived;
 
         /// <summary>Signals that the websocket was closed.</summary>
-        public event EventHandler SocketClosed;
+        public event EventHandler Closed;
 
         /// <summary>Signals that the socket has opened a connection.</summary>
-        public event EventHandler SocketOpened;
+        public event EventHandler Opened;
 
         /// <summary>
         /// Asynchronously connects to WebSocket server and start receiving income messages in separate Task
@@ -97,8 +97,8 @@ namespace WebSockets
                     var responce = Encoding.UTF8.GetString(buffer, 0, writeSegment.Offset);
 
                     await Task.Factory.FromAsync(
-                        this.MessageReceived.BeginInvoke,
-                        this.MessageReceived.EndInvoke,
+                        this.SocketMessageReceived.BeginInvoke,
+                        this.SocketMessageReceived.EndInvoke,
                         this,
                         new SocketMessageEventArgs { Message = responce },
                         null);
