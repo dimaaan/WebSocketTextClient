@@ -22,7 +22,7 @@ Wrapper around System.Net.WebSockets.ClientWebSocket that provides event based i
 using (var cts = new CancellationTokenSource())
 using (var client = new WebSocketTextClient(cts.Token))
 {
-    client.OnResponse = (text) => Console.WriteLine(text);
+    client.OnResponse = (sender, eventArgs) => Console.WriteLine(eventArgs.Message);
 
     await client.ConnectAsync(new Uri("ws://example.com"));
     await client.SendAsync("ping");
