@@ -27,10 +27,17 @@ namespace WebSockets
             RecieveTask = new Task(RecieveLoop, cancellationToken);
         }
 
-        /// <summary>
-        /// Signals that response message fully received and ready to process
-        /// </summary>
-        public event Action<string> OnResponse;
+        /// <summary>Signals that response message fully received and ready to process.</summary>
+        public event EventHandler<SocketMessageEventArgs> MessageReceived;
+
+        /// <summary>Singals that the websocket received an error.</summary>
+        public event EventHandler<SocketErrorEventArgs> ErrorReceived;
+
+        /// <summary>Signals that the websocket was closed.</summary>
+        public event EventHandler SocketClosed;
+
+        /// <summary>Signals that the socket has opened a connection.</summary>
+        public event EventHandler SocketOpened;
 
         /// <summary>
         /// Asynchronously connects to WebSocket server and start receiving income messages in separate Task
@@ -40,6 +47,13 @@ namespace WebSockets
         {
             await Socket.ConnectAsync(url, CancellationToken);
             RecieveTask.Start();
+
+            await Task.Factory.FromAsync(
+                this.SocketOpened.BeginInvoke,
+                this.SocketOpened.EndInvoke,
+                this,
+                EventArgs.Empty,
+                null);    
         }
 
         /// <summary>
@@ -70,13 +84,25 @@ namespace WebSockets
                     } while (!result.EndOfMessage);
 
                     var responce = Encoding.UTF8.GetString(buffer, 0, writeSegment.Offset);
-                    OnResponse?.Invoke(responce);
-                }
+
+                    await Task.Factory.FromAsync(
+                        this.MessageReceived.BeginInvoke,
+                        this.MessageReceived.EndInvoke,
+                        this,
+                        new SocketMessageEventArgs { Message = responce },
+                        null);
+               }
             }
-            catch (OperationCanceledException)
+            catch (Exception ex)
             {
-                // swallow cancel exception
+                await Task.Factory.FromAsync(
+                    this.ErrorReceived.BeginInvoke,
+                    this.ErrorReceived.EndInvoke,
+                    this,
+                    new SocketErrorEventArgs {Exception = ex, Message = string.Empty},
+                    null);
             }
+
         }
 
         /// <summary>
@@ -86,6 +112,20 @@ namespace WebSockets
         {
             Socket.Dispose();
             RecieveTask.Dispose();
+
+            this.SocketClosed?.Invoke(this, EventArgs.Empty);
         }
+    }
+
+    public sealed class SocketMessageEventArgs : EventArgs
+    {
+        public string Message { get; set; }
+    }
+
+    public sealed class SocketErrorEventArgs :EventArgs
+    {
+        public Exception Exception { get; set; }
+
+        public string Message { get; set; }
     }
 }
