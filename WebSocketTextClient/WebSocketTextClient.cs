@@ -64,15 +64,7 @@
             await socket.ConnectAsync(url, cancellationToken);
             recieveTask.Start();
 
-            if (this.Opened != null)
-            {
-                await Task.Factory.FromAsync(
-                    this.Opened.BeginInvoke,
-                    this.Opened.EndInvoke,
-                    this,
-                    EventArgs.Empty,
-                    null);
-            }
+            this.Opened?.Invoke(this, EventArgs.Empty);
         }
 
         /// <summary>Adds custom request headers to the initial request.</summary>
@@ -126,28 +118,12 @@
 
                     var responce = Encoding.UTF8.GetString(buffer, 0, writeSegment.Offset);
 
-                    if (this.MessageReceived != null)
-                    {
-                        await Task.Factory.FromAsync(
-                            this.MessageReceived.BeginInvoke,
-                            this.MessageReceived.EndInvoke,
-                            this,
-                            new MessageReceivedEventArgs { Message = responce },
-                            null);
-                    }
+                    this.MessageReceived?.Invoke(this, new MessageReceivedEventArgs { Message = responce });
                 }
             }
             catch (Exception ex)
             {
-                if (this.ErrorReceived != null)
-                {
-                    await Task.Factory.FromAsync(
-                        this.ErrorReceived.BeginInvoke,
-                        this.ErrorReceived.EndInvoke,
-                        this,
-                        new SocketErrorEventArgs { Exception = ex, Message = string.Empty },
-                        null);
-                }
+                this.ErrorReceived?.Invoke(this, new SocketErrorEventArgs { Exception = ex, Message = string.Empty });
             }
         }
 
