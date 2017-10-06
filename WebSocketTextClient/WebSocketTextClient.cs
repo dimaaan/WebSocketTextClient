@@ -48,7 +48,7 @@
         /// <summary>Signals that response message fully received and ready to process.</summary>
         public event EventHandler<MessageReceivedEventArgs> MessageReceived;
 
-        /// <summary>Singals that the websocket received an error.</summary>
+        /// <summary>Signals that the websocket received an error.</summary>
         public event EventHandler<SocketErrorEventArgs> ErrorReceived;
 
         /// <summary>Signals that the websocket was closed.</summary>
@@ -123,7 +123,7 @@
             }
             catch (Exception ex)
             {
-                this.ErrorReceived?.Invoke(this, new SocketErrorEventArgs { Exception = ex, Message = string.Empty });
+                this.ErrorReceived?.Invoke(this, new SocketErrorEventArgs { Exception = ex, Message = "An error occoured." });
             }
         }
 
