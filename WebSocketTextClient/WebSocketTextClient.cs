@@ -14,14 +14,31 @@
         private readonly ClientWebSocket socket;
         private readonly CancellationToken cancellationToken;
         private readonly Task recieveTask;
+        private readonly int initialRecieveBufferSize;
+        private readonly bool autoIncreaseRecieveBuffer;
 
         /// <summary>Create new instance of WebSocketTextClient.</summary>
         /// <param name="cancellationToken">Cancels pending send and receive operations</param>
-        public WebSocketTextClient(CancellationToken cancellationToken)
+        /// <param name="initialRecieveBufferSize">Socket initial receive buffer size in bytes</param>
+        /// <param name="autoIncreaseRecieveBuffer">
+        /// If true, receive buffer size will be doubled on overflow. 
+        /// If false, unobserved InvalidOperationException will be thrown on overflow
+        /// </param>
+        public WebSocketTextClient(CancellationToken? cancellationToken = null, int initialRecieveBufferSize = 1024, bool autoIncreaseRecieveBuffer = true)
         {
-            this.cancellationToken = cancellationToken;
             socket = new ClientWebSocket();
-            recieveTask = new Task(RecieveLoop, cancellationToken);
+            this.cancellationToken = cancellationToken ?? CancellationToken.None;
+            
+
+            recieveTask = new Task(RecieveLoop, this.cancellationToken);
+
+            if (initialRecieveBufferSize <= 0)
+            {
+                throw new ArgumentException("Receive buffer size should be greater than zero", nameof(initialRecieveBufferSize));
+            }
+
+            this.initialRecieveBufferSize = initialRecieveBufferSize;
+            this.autoIncreaseRecieveBuffer = autoIncreaseRecieveBuffer;
         }
 
         /// <summary>Signals that response message fully received and ready to process.</summary>
@@ -74,7 +91,8 @@
 
         private async void RecieveLoop()
         {
-            byte[] buffer = new byte[1024];
+            byte[] buffer = new byte[initialRecieveBufferSize];
+
             try
             {
                 while (true)
@@ -85,6 +103,21 @@
                     {
                         result = await socket.ReceiveAsync(writeSegment, cancellationToken);
                         writeSegment = new ArraySegment<byte>(buffer, writeSegment.Offset + result.Count, writeSegment.Count - result.Count);
+
+                        // check buffer overflow
+                        if (!result.EndOfMessage && writeSegment.Count == 0)
+                        {
+                            if (autoIncreaseRecieveBuffer)
+                            {
+                                Array.Resize(ref buffer, buffer.Length * 2);
+                                writeSegment = new ArraySegment<byte>(buffer, writeSegment.Offset, buffer.Length - writeSegment.Offset);
+                            }
+                            else
+                            {
+                                throw new InvalidOperationException($"Socket receive buffer overflow. Buffer size = {buffer.Length}. Buffer auto-increase = {autoIncreaseRecieveBuffer}");
+                            }
+                        }
+
                     } while (!result.EndOfMessage);
 
                     var responce = Encoding.UTF8.GetString(buffer, 0, writeSegment.Offset);
