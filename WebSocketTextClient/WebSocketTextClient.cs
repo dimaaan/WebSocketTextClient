@@ -17,28 +17,32 @@
         private readonly int initialRecieveBufferSize;
         private readonly bool autoIncreaseRecieveBuffer;
 
-        /// <summary>Create new instance of WebSocketTextClient.</summary>
-        /// <param name="cancellationToken">Cancels pending send and receive operations</param>
-        /// <param name="initialRecieveBufferSize">Socket initial receive buffer size in bytes</param>
-        /// <param name="autoIncreaseRecieveBuffer">
-        /// If true, receive buffer size will be doubled on overflow. 
-        /// If false, unobserved InvalidOperationException will be thrown on overflow
-        /// </param>
-        public WebSocketTextClient(CancellationToken? cancellationToken = null, int initialRecieveBufferSize = 1024, bool autoIncreaseRecieveBuffer = true)
+        /// <summary>Initializes a new instance of the <see cref="WebSocketTextClient"/> class.</summary>
+        /// <param name="initialRecieveBufferSize">The initial buffer size for incoming messages in bytes.</param>
+        /// <param name="autoIncreaseRecieveBuffer">True to double the buffer on overflow. Otherwise an <see cref="InvalidOperationException"/> will be thrown.</param>
+        public WebSocketTextClient(int initialRecieveBufferSize = 1024, bool autoIncreaseRecieveBuffer = true)
+            : this(CancellationToken.None, initialRecieveBufferSize, autoIncreaseRecieveBuffer)
         {
-            socket = new ClientWebSocket();
-            this.cancellationToken = cancellationToken ?? CancellationToken.None;
-            
+        }
 
-            recieveTask = new Task(RecieveLoop, this.cancellationToken);
-
+        /// <summary>Initializes a new instance of the <see cref="WebSocketTextClient"/> class.</summary>
+        /// <param name="cancellationToken">Cancels pending send and receive operations</param>
+        /// <param name="initialRecieveBufferSize">The initial buffer size for incoming messages in bytes.</param>
+        /// <param name="autoIncreaseRecieveBuffer">True to double the buffer on overflow. Otherwise an <see cref="InvalidOperationException"/> will be thrown.</param>
+        public WebSocketTextClient(CancellationToken cancellationToken, int initialRecieveBufferSize = 1024, bool autoIncreaseRecieveBuffer = true)
+        {
             if (initialRecieveBufferSize <= 0)
             {
                 throw new ArgumentException("Receive buffer size should be greater than zero", nameof(initialRecieveBufferSize));
             }
 
+            this.cancellationToken = cancellationToken;
+            
             this.initialRecieveBufferSize = initialRecieveBufferSize;
             this.autoIncreaseRecieveBuffer = autoIncreaseRecieveBuffer;
+
+            socket = new ClientWebSocket();
+            recieveTask = new Task(RecieveLoop, this.cancellationToken);
         }
 
         /// <summary>Signals that response message fully received and ready to process.</summary>
