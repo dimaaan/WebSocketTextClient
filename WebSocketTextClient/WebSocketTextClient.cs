@@ -1,35 +1,31 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Net.WebSockets;
-using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
-
-namespace WebSockets
+﻿namespace WebSockets
 {
-    /// <summary>
-    /// Wrapper around ClientWebSocket that provides suitable interface to exchange text messages over Web Sockets in event based way
-    /// </summary>
-    /// <seealso cref="System.Net.WebSockets.ClientWebSocket"/>
-    public class WebSocketTextClient: IDisposable
-    {
-        private ClientWebSocket Socket;
-        private CancellationToken CancellationToken;
-        private Task RecieveTask;
+    using System;
+    using System.Collections.Generic;
+    using System.Net.WebSockets;
+    using System.Text;
+    using System.Threading;
+    using System.Threading.Tasks;
 
-        /// <summary>
-        /// Create new instance of WebSocketTextClient
-        /// </summary>
+    /// <summary>Wrapper around ClientWebSocket that provides suitable interface to exchange text messages over Web Sockets in event based way.</summary>
+    /// <seealso cref="System.Net.WebSockets.ClientWebSocket"/>
+    public class WebSocketTextClient : IDisposable
+    {
+        private readonly ClientWebSocket socket;
+        private readonly CancellationToken cancellationToken;
+        private readonly Task recieveTask;
+
+        /// <summary>Create new instance of WebSocketTextClient.</summary>
         /// <param name="cancellationToken">Cancels pending send and receive operations</param>
         public WebSocketTextClient(CancellationToken cancellationToken)
         {
-            CancellationToken = cancellationToken;
-            Socket = new ClientWebSocket();
-            RecieveTask = new Task(RecieveLoop, cancellationToken);
+            this.cancellationToken = cancellationToken;
+            socket = new ClientWebSocket();
+            recieveTask = new Task(RecieveLoop, cancellationToken);
         }
 
         /// <summary>Signals that response message fully received and ready to process.</summary>
-        public event EventHandler<SocketMessageEventArgs> MessageReceived;
+        public event EventHandler<MessageReceivedEventArgs> MessageReceived;
 
         /// <summary>Singals that the websocket received an error.</summary>
         public event EventHandler<SocketErrorEventArgs> ErrorReceived;
@@ -40,21 +36,22 @@ namespace WebSockets
         /// <summary>Signals that the socket has opened a connection.</summary>
         public event EventHandler Opened;
 
-        /// <summary>
-        /// Asynchronously connects to WebSocket server and start receiving income messages in separate Task
-        /// </summary>
-        /// <param name="url">The URI of the WebSocket server to connect to</param>
+        /// <summary>Asynchronously connects to WebSocket server and start receiving income messages in separate Task.</summary>
+        /// <param name="url">The <see cref="Uri"/> of the WebSocket server to connect to.</param>
         public async Task ConnectAsync(Uri url)
         {
-            await Socket.ConnectAsync(url, CancellationToken);
-            RecieveTask.Start();
+            await socket.ConnectAsync(url, cancellationToken);
+            recieveTask.Start();
 
-            await Task.Factory.FromAsync(
-                this.SocketOpened.BeginInvoke,
-                this.SocketOpened.EndInvoke,
-                this,
-                EventArgs.Empty,
-                null);    
+            if (this.Opened != null)
+            {
+                await Task.Factory.FromAsync(
+                    this.Opened.BeginInvoke,
+                    this.Opened.EndInvoke,
+                    this,
+                    EventArgs.Empty,
+                    null);
+            }
         }
 
         /// <summary>Adds custom request headers to the initial request.</summary>
@@ -63,80 +60,67 @@ namespace WebSockets
         {
             foreach (var header in headers)
             {
-                this.Socket.Options.SetRequestHeader(header.Key, header.Value);
+                this.socket.Options.SetRequestHeader(header.Key, header.Value);
             }
         }
 
-        /// <summary>
-        /// Asynchronously sends message to WebSocket server
-        /// </summary>
+        /// <summary>Asynchronously sends message to WebSocket server</summary>
         /// <param name="str">Message to send</param>
         public Task SendAsync(string str)
         {
             var bytes = Encoding.UTF8.GetBytes(str);
-            return Socket.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Text, true, CancellationToken);
+            return socket.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Text, true, cancellationToken);
         }
 
         private async void RecieveLoop()
         {
             byte[] buffer = new byte[1024];
-            ArraySegment<byte> writeSegment;
-            WebSocketReceiveResult result;
-
             try
             {
                 while (true)
                 {
-                    writeSegment = new ArraySegment<byte>(buffer);
+                    var writeSegment = new ArraySegment<byte>(buffer);
+                    WebSocketReceiveResult result;
                     do
                     {
-                        result = await Socket.ReceiveAsync(writeSegment, CancellationToken);
+                        result = await socket.ReceiveAsync(writeSegment, cancellationToken);
                         writeSegment = new ArraySegment<byte>(buffer, writeSegment.Offset + result.Count, writeSegment.Count - result.Count);
                     } while (!result.EndOfMessage);
 
                     var responce = Encoding.UTF8.GetString(buffer, 0, writeSegment.Offset);
 
-                    await Task.Factory.FromAsync(
-                        this.SocketMessageReceived.BeginInvoke,
-                        this.SocketMessageReceived.EndInvoke,
-                        this,
-                        new SocketMessageEventArgs { Message = responce },
-                        null);
-               }
+                    if (this.MessageReceived != null)
+                    {
+                        await Task.Factory.FromAsync(
+                            this.MessageReceived.BeginInvoke,
+                            this.MessageReceived.EndInvoke,
+                            this,
+                            new MessageReceivedEventArgs { Message = responce },
+                            null);
+                    }
+                }
             }
             catch (Exception ex)
             {
-                await Task.Factory.FromAsync(
-                    this.ErrorReceived.BeginInvoke,
-                    this.ErrorReceived.EndInvoke,
-                    this,
-                    new SocketErrorEventArgs {Exception = ex, Message = string.Empty},
-                    null);
+                if (this.ErrorReceived != null)
+                {
+                    await Task.Factory.FromAsync(
+                        this.ErrorReceived.BeginInvoke,
+                        this.ErrorReceived.EndInvoke,
+                        this,
+                        new SocketErrorEventArgs { Exception = ex, Message = string.Empty },
+                        null);
+                }
             }
-
         }
 
-        /// <summary>
-        /// Close connection and stops message receiving Task
-        /// </summary>
+        /// <summary>Close connection and stops the message receiving Task.</summary>
         public void Dispose()
         {
-            Socket.Dispose();
-            RecieveTask.Dispose();
+            socket.Dispose();
+            recieveTask.Dispose();
 
-            this.SocketClosed?.Invoke(this, EventArgs.Empty);
+            this.Closed?.Invoke(this, EventArgs.Empty);
         }
-    }
-
-    public sealed class SocketMessageEventArgs : EventArgs
-    {
-        public string Message { get; set; }
-    }
-
-    public sealed class SocketErrorEventArgs :EventArgs
-    {
-        public Exception Exception { get; set; }
-
-        public string Message { get; set; }
     }
 }
