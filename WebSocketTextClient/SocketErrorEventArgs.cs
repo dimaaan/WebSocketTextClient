@@ -7,8 +7,5 @@
     {
         /// <summary>Gets or sets the exception, that was raised.</summary>
         public Exception Exception { get; set; }
-
-        /// <summary>Gets or sets the message that was passed with the error.</summary>
-        public string Message { get; set; }
     }
 }

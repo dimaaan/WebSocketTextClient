@@ -37,8 +37,8 @@
             }
 
             var internalTokenSource = new CancellationTokenSource();
-            this.tokenSource = cancellationToken != CancellationToken.None 
-                ? CancellationTokenSource.CreateLinkedTokenSource(internalTokenSource.Token, cancellationToken) 
+            this.tokenSource = cancellationToken != CancellationToken.None
+                ? CancellationTokenSource.CreateLinkedTokenSource(internalTokenSource.Token, cancellationToken)
                 : internalTokenSource;
 
             // Register the disconnect method as a fire and forget method to run when the user requests cancellation
@@ -145,7 +145,7 @@
             }
             catch (Exception ex)
             {
-                this.ErrorReceived?.Invoke(this, new SocketErrorEventArgs { Exception = ex, Message = "An error occoured"});
+                this.ErrorReceived?.Invoke(this, new SocketErrorEventArgs { Exception = ex });
             }
         }
 
