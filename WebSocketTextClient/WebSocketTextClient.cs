@@ -9,10 +9,10 @@
 
     /// <summary>Wrapper around ClientWebSocket that provides suitable interface to exchange text messages over Web Sockets in event based way.</summary>
     /// <seealso cref="System.Net.WebSockets.ClientWebSocket"/>
-    public class WebSocketTextClient : IDisposable
+    public sealed class WebSocketTextClient : IDisposable
     {
+        private readonly CancellationTokenSource tokenSource;
         private readonly ClientWebSocket socket;
-        private readonly CancellationToken cancellationToken;
         private readonly Task recieveTask;
         private readonly int initialRecieveBufferSize;
         private readonly bool autoIncreaseRecieveBuffer;
@@ -36,13 +36,20 @@
                 throw new ArgumentException("Receive buffer size should be greater than zero", nameof(initialRecieveBufferSize));
             }
 
-            this.cancellationToken = cancellationToken;
-            
+            var internalTokenSource = new CancellationTokenSource();
+            this.tokenSource = cancellationToken != CancellationToken.None 
+                ? CancellationTokenSource.CreateLinkedTokenSource(internalTokenSource.Token, cancellationToken) 
+                : internalTokenSource;
+
+            // Register the disconnect method as a fire and forget method to run when the user requests cancellation
+            this.tokenSource.Token.Register(() => Task.Run(this.DisconnectAsync));
+
+
             this.initialRecieveBufferSize = initialRecieveBufferSize;
             this.autoIncreaseRecieveBuffer = autoIncreaseRecieveBuffer;
 
             socket = new ClientWebSocket();
-            recieveTask = new Task(RecieveLoop, this.cancellationToken);
+            recieveTask = this.RecieveLoopAsync(this.tokenSource.Token);
         }
 
         /// <summary>Signals that response message fully received and ready to process.</summary>
@@ -61,10 +68,25 @@
         /// <param name="url">The <see cref="Uri"/> of the WebSocket server to connect to.</param>
         public async Task ConnectAsync(Uri url)
         {
-            await socket.ConnectAsync(url, cancellationToken);
+            await socket.ConnectAsync(url, this.tokenSource.Token);
             recieveTask.Start();
 
             this.Opened?.Invoke(this, EventArgs.Empty);
+        }
+
+        /// <summary>Disconnects the WebSocket gracefully from the server.</summary>
+        public async Task DisconnectAsync()
+        {
+            await this.socket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Client closed the connection", CancellationToken.None);
+
+            // Check if cancellation is already requested, 
+            // i.e. the user requested cancellation from outside the class.
+            if (!this.tokenSource.IsCancellationRequested)
+            {
+                this.tokenSource.Cancel();
+            }
+
+            this.Closed?.Invoke(this, EventArgs.Empty);
         }
 
         /// <summary>Adds custom request headers to the initial request.</summary>
@@ -82,10 +104,10 @@
         public Task SendAsync(string str)
         {
             var bytes = Encoding.UTF8.GetBytes(str);
-            return socket.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Text, true, cancellationToken);
+            return socket.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Text, true, tokenSource.Token);
         }
 
-        private async void RecieveLoop()
+        private async Task RecieveLoopAsync(CancellationToken cancellationToken)
         {
             byte[] buffer = new byte[initialRecieveBufferSize];
 
@@ -123,17 +145,19 @@
             }
             catch (Exception ex)
             {
-                this.ErrorReceived?.Invoke(this, new SocketErrorEventArgs { Exception = ex, Message = "An error occoured." });
+                this.ErrorReceived?.Invoke(this, new SocketErrorEventArgs { Exception = ex, Message = "An error occoured"});
             }
         }
 
         /// <summary>Close connection and stops the message receiving Task.</summary>
+        /// <remarks>
+        /// The dispose method only disposes the unmanaged resorces and does not close the underlying connection or stops the long running tasks gracefully.
+        /// Before this object is disposed the <see cref="DisconnectAsync"/> should be called.
+        /// </remarks>
         public void Dispose()
         {
             socket.Dispose();
             recieveTask.Dispose();
-
-            this.Closed?.Invoke(this, EventArgs.Empty);
         }
     }
 }
