@@ -1,6 +1,6 @@
 # WebSocketTextClient
 
-Wrapper around System.Net.WebSockets.ClientWebSocket that provides event based interface to exchange text messages over Web Sockets in event based way and support cancellation.
+Wrapper around System.Net.WebSockets.ClientWebSocket that provides event based interface to exchange text messages over Web Sockets in event based way and support cancellation. Includes events for open/close, message received and error received.
 
 ## Target Platform: 
 .NET Standard 2.0
@@ -22,7 +22,7 @@ Wrapper around System.Net.WebSockets.ClientWebSocket that provides event based i
 using (var cts = new CancellationTokenSource())
 using (var client = new WebSocketTextClient(cts.Token))
 {
-    client.OnResponse = (text) => Console.WriteLine(text);
+    client.MessageReceived = (sender, eventArgs) => Console.WriteLine(eventArgs.Message);
 
     await client.ConnectAsync(new Uri("ws://example.com"));
     await client.SendAsync("ping");
