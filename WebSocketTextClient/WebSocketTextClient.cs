@@ -11,45 +11,27 @@
     /// <seealso cref="System.Net.WebSockets.ClientWebSocket"/>
     public sealed class WebSocketTextClient : IDisposable
     {
-        private readonly CancellationTokenSource tokenSource;
         private readonly ClientWebSocket socket;
-        private readonly Task recieveTask;
         private readonly int initialRecieveBufferSize;
         private readonly bool autoIncreaseRecieveBuffer;
+
+        private CancellationTokenSource tokenSource;
+        private Task recieveTask;
 
         /// <summary>Initializes a new instance of the <see cref="WebSocketTextClient"/> class.</summary>
         /// <param name="initialRecieveBufferSize">The initial buffer size for incoming messages in bytes.</param>
         /// <param name="autoIncreaseRecieveBuffer">True to double the buffer on overflow. Otherwise an <see cref="InvalidOperationException"/> will be thrown.</param>
         public WebSocketTextClient(int initialRecieveBufferSize = 1024, bool autoIncreaseRecieveBuffer = true)
-            : this(CancellationToken.None, initialRecieveBufferSize, autoIncreaseRecieveBuffer)
-        {
-        }
-
-        /// <summary>Initializes a new instance of the <see cref="WebSocketTextClient"/> class.</summary>
-        /// <param name="cancellationToken">Cancels pending send and receive operations</param>
-        /// <param name="initialRecieveBufferSize">The initial buffer size for incoming messages in bytes.</param>
-        /// <param name="autoIncreaseRecieveBuffer">True to double the buffer on overflow. Otherwise an <see cref="InvalidOperationException"/> will be thrown.</param>
-        public WebSocketTextClient(CancellationToken cancellationToken, int initialRecieveBufferSize = 1024, bool autoIncreaseRecieveBuffer = true)
         {
             if (initialRecieveBufferSize <= 0)
             {
                 throw new ArgumentException("Receive buffer size should be greater than zero", nameof(initialRecieveBufferSize));
             }
-
-            var internalTokenSource = new CancellationTokenSource();
-            this.tokenSource = cancellationToken != CancellationToken.None
-                ? CancellationTokenSource.CreateLinkedTokenSource(internalTokenSource.Token, cancellationToken)
-                : internalTokenSource;
-
-            // Register the disconnect method as a fire and forget method to run when the user requests cancellation
-            this.tokenSource.Token.Register(() => Task.Run(this.DisconnectAsync));
-
-
+            
             this.initialRecieveBufferSize = initialRecieveBufferSize;
             this.autoIncreaseRecieveBuffer = autoIncreaseRecieveBuffer;
 
-            socket = new ClientWebSocket();
-            recieveTask = this.RecieveLoopAsync(this.tokenSource.Token);
+            this.socket = new ClientWebSocket();
         }
 
         /// <summary>Signals that response message fully received and ready to process.</summary>
@@ -66,11 +48,25 @@
 
         /// <summary>Asynchronously connects to WebSocket server and start receiving income messages in separate Task.</summary>
         /// <param name="url">The <see cref="Uri"/> of the WebSocket server to connect to.</param>
-        public async Task ConnectAsync(Uri url)
+        /// <param name="cancellationToken">The token used to close the socket connection.</param>
+        public async Task ConnectAsync(Uri url, CancellationToken cancellationToken)
         {
-            await socket.ConnectAsync(url, this.tokenSource.Token);
-            recieveTask.Start();
+            // Create a new token source, since we can't reuse an existing and cancelled one.
+            var internalTokenSource = new CancellationTokenSource();
+            this.tokenSource = cancellationToken != CancellationToken.None
+                ? CancellationTokenSource.CreateLinkedTokenSource(internalTokenSource.Token, cancellationToken)
+                : internalTokenSource;
+            
+            // Register the disconnect method as a fire and forget method to run when the user requests cancellation
+            // Don't pass in the cancellation token from the token source, since the token is cancelling the request.
+            this.tokenSource.Token.Register(() => Task.Run(this.DisconnectAsync));
 
+            // Store the receive task with the new cancellation token.
+            this.recieveTask = this.RecieveLoopAsync(this.tokenSource.Token);
+
+            // Open the connection and raise the opened event.
+            await socket.ConnectAsync(url, this.tokenSource.Token);
+            this.recieveTask.Start();
             this.Opened?.Invoke(this, EventArgs.Empty);
         }
 
@@ -80,7 +76,7 @@
             await this.socket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Client closed the connection", CancellationToken.None);
 
             // Check if cancellation is already requested, 
-            // i.e. the user requested cancellation from outside the class.
+            // e.g. the user requested cancellation from outside the class.
             if (!this.tokenSource.IsCancellationRequested)
             {
                 this.tokenSource.Cancel();
