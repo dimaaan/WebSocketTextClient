@@ -12,10 +12,13 @@
     public sealed class WebSocketTextClient : IDisposable
     {
         private readonly ClientWebSocket socket;
+
         private readonly int initialRecieveBufferSize;
+
         private readonly bool autoIncreaseRecieveBuffer;
 
         private CancellationTokenSource tokenSource;
+
         private Task recieveTask;
 
         /// <summary>Initializes a new instance of the <see cref="WebSocketTextClient"/> class.</summary>
@@ -31,9 +34,9 @@
             this.initialRecieveBufferSize = initialRecieveBufferSize;
             this.autoIncreaseRecieveBuffer = autoIncreaseRecieveBuffer;
 
-            this.socket = new ClientWebSocket();
+            this.socket = new ClientWebSocket();        
         }
-
+        
         /// <summary>Signals that response message fully received and ready to process.</summary>
         public event EventHandler<MessageReceivedEventArgs> MessageReceived;
 
@@ -66,7 +69,7 @@
 
             // Open the connection and raise the opened event.
             await socket.ConnectAsync(url, this.tokenSource.Token);
-            this.recieveTask.Start();
+            await this.recieveTask;
             this.Opened?.Invoke(this, EventArgs.Empty);
         }
 
@@ -115,7 +118,7 @@
                     WebSocketReceiveResult result;
                     do
                     {
-                        result = await socket.ReceiveAsync(writeSegment, cancellationToken);
+                        result = await socket.ReceiveAsync(writeSegment, CancellationToken.None);
                         writeSegment = new ArraySegment<byte>(buffer, writeSegment.Offset + result.Count, writeSegment.Count - result.Count);
 
                         // check buffer overflow
@@ -135,7 +138,6 @@
                     } while (!result.EndOfMessage);
 
                     var responce = Encoding.UTF8.GetString(buffer, 0, writeSegment.Offset);
-
                     this.MessageReceived?.Invoke(this, new MessageReceivedEventArgs { Message = responce });
                 }
             }
