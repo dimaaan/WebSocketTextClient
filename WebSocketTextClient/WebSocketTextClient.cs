@@ -35,6 +35,7 @@
             this.autoIncreaseRecieveBuffer = autoIncreaseRecieveBuffer;
 
             this.socket = new ClientWebSocket();        
+            this.tokenSource = new CancellationTokenSource();
         }
         
         /// <summary>Signals that response message fully received and ready to process.</summary>
